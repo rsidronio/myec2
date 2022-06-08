@@ -54,7 +54,7 @@ def loading_dots(load_msg, dot_time):
 		print(load_msg+"   ",end="\r")
 
 if args.cmd == "start" or args.cmd == "stop":
-	#TODO - resolver essas gambiarra
+	#TODO - resolver essas gambiarr
     aux = ("Starting", "running", f"is {GREEN}") if args.cmd == "start" else ("Stopping", "stopped", f"has {RED}")
     try:
         if args.cmd == "start":
