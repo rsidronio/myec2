@@ -1,9 +1,26 @@
 #!/bin/env python
 
 import boto3
+from botocore.exceptions import ClientError
 import time
+import sys
 import argparse
 from tabulate import tabulate
+
+########COLORS#######
+## tirar daqui depois
+GREEN = '\033[0;32m'
+RED = '\033[0;31m'
+HEADER = '\033[95m'
+OKBLUE = '\033[94m'
+OKCYAN = '\033[96m'
+OKGREEN = '\033[92m'
+WARNING = '\033[93m'
+FAIL = '\033[91m'
+ENDC = '\033[0m'
+BOLD = '\033[1m'
+UNDERLINE = '\033[4m'
+
 
 client = boto3.client("ec2")
 
@@ -20,10 +37,10 @@ subparsers = parser.add_subparsers(required=True, dest='cmd')
 # commands:
 # start
 parser_start = subparsers.add_parser('start', help='start instances', parents=[options_parser])
-parser_start.add_argument('start_id', nargs='+', type=str,metavar="instance_id", help='instance id\'s')
+parser_start.add_argument('id', nargs='+', type=str,metavar="instance_id", help='instance id\'s')
 # stop
 parser_stop = subparsers.add_parser('stop', help='stop instances', parents=[options_parser])
-parser_stop.add_argument('stop_id', nargs='+', type=str,metavar="instance_id", help='instance id\'s')
+parser_stop.add_argument('id', nargs='+', type=str,metavar="instance_id", help='instance id\'s')
 # list
 parser_list = subparsers.add_parser('list', help='list instances', parents=[options_parser])
 
@@ -32,35 +49,32 @@ args = parser.parse_args()
 # emoticon pensativo
 def loading_dots(load_msg, dot_time):
 	for i in range(0,4):
-		print(load_msg+"."*i, end="\r")
+		print("\033[?25l"+load_msg+"."*i, end="\r")
 		time.sleep(dot_time)
 		print(load_msg+"   ",end="\r")
 
-if args.cmd == "start":
-	#TODO - resolver essas gambiarra repetida
+if args.cmd == "start" or args.cmd == "stop":
+	#TODO - resolver essas gambiarra
+    aux = ("Starting", "running", f"is {GREEN}") if args.cmd == "start" else ("Stopping", "stopped", f"has {RED}")
+    try:
+        if args.cmd == "start":
+            client.start_instances(InstanceIds=args.id)
+        else:
+            client.stop_instances(InstanceIds=args.id)
+        print(f"{aux[0]} instance(s)")
 
-	client.start_instances(InstanceIds=args.start_id)
-	print("Starting instance(s)")
+    except ClientError as e:
+        print(f"{RED}Error{ENDC}", e.response["Error"]['Message'])
+        sys.exit(1)
 
-	if args.wait:
-		for instance_id in args.start_id:
-			while boto3.resource('ec2').Instance(instance_id).state['Name'] != "running":
-				loading_dots(f"Starting {instance_id}", 2)
-			print(f"\r{instance_id} is \033[0;32mrunning\033[0m ")
+    if args.wait:
+        for instance_id in args.id:
+            while boto3.resource('ec2').Instance(instance_id).state['Name'] != aux[1]:
+                loading_dots(f"{aux[0]} {instance_id}", 2)
+            print(f"\r{instance_id} {aux[2]}{aux[1]}{ENDC} \033[?25h")
 
 	# if args.addresses:
 	# 	print("ADDRESES OPTION ACTIVAET")
-
-if args.cmd == "stop":
-
-	client.stop_instances(InstanceIds=args.stop_id)
-	print("Stopping instance(s)")
-
-	if args.wait:
-		for instance_id in args.stop_id:
-			while boto3.resource('ec2').Instance(instance_id).state['Name'] != "stopped":
-				loading_dots(instance_id, 2)
-			print(f"\r{instance_id} has \033[0;31mstopped\033[0m ")
 
 if args.cmd == "list":
 	# TODO - checar se pode ter varias tags e como fica output com tag nula
