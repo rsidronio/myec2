@@ -1,0 +1,6 @@
+test.*
+t__*
+venv/
+venv
+workspace.code-workspace
+.prettierrc
