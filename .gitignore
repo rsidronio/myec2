@@ -1,4 +1,6 @@
 test*
+test/
+*_test.py
 t__*
 venv/
 workspace.code-workspace

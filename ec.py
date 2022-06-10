@@ -1,11 +1,15 @@
 #!/bin/env python
 
 import boto3
-from botocore.exceptions import ClientError
 import time
 import sys
 import argparse
+
+from botocore.exceptions import ClientError
 from tabulate import tabulate
+from terminaltables import AsciiTable, DoubleTable, SingleTable
+
+
 
 ########COLORS#######
 ## tirar daqui depois
@@ -19,6 +23,7 @@ WARNING = '\033[93m'
 FAIL = '\033[91m'
 ENDC = '\033[0m'
 BOLD = '\033[1m'
+DIM = '\033[2m'
 UNDERLINE = '\033[4m'
 
 
@@ -54,7 +59,7 @@ def loading_dots(load_msg, dot_time):
 		print(load_msg+"   ",end="\r")
 
 if args.cmd == "start" or args.cmd == "stop":
-	#TODO - resolver essas gambiarr
+	#TODO - resolver essas gambiarra
     aux = ("Starting", "running", f"is {GREEN}") if args.cmd == "start" else ("Stopping", "stopped", f"has {RED}")
     try:
         if args.cmd == "start":
@@ -93,9 +98,25 @@ if args.cmd == "list":
 				instance_state = "\033[0;32m"+instance_state+"\033[0m"
 
 			instance_list.append([instance_id, instance_state, instance_tag])
-
-	print("\n", tabulate(instance_list, headers=[
+	print("\n"+tabulate(instance_list, headers=[
 			'Instance Id', 'State', 'Tag'], tablefmt="simple"), "\n", sep="")
+
+	# TABLE_DATA = (
+    # ('Instance Id', 'State', 'Tag'),
+    # ('i-0ccc85407f15e6271', 'stopped', 'ubuntu'),
+    # ('i-09148548f15a84e47', 'stopped', 'foundry-server'),
+	# )
+
+	# title = 'us-east-2'
+	# table_instance = SingleTable(TABLE_DATA, title)
+	# table_instance.outer_border = True
+	# table_instance.inner_column_border = True
+	# table_instance.inner_footing_row_border = False
+	# table_instance.inner_heading_row_border = True
+	# table_instance.inner_row_border = False
+	# # table_instance.justify_columns[0] = 'center'
+	# print(table_instance.table)
+
 
 if args.tag_name:
     print('TAG NAME ATIVADA')
