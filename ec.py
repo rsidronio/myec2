@@ -11,8 +11,6 @@ from botocore.exceptions import ClientError
 from tabulate import tabulate
 #from terminaltables import AsciiTable, DoubleTable, SingleTable
 
-
-
 ########COLORS#######
 ## tirar daqui depois
 GREEN = '\033[0;32m'
@@ -39,7 +37,7 @@ os.environ["AWS_SECRET_ACCESS_KEY"] = config['aws']['aws_secret_access_key']
 os.environ["AWS_DEFAULT_REGION"] = config['aws']['default_region']
 
 #argument parsers
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(usage=None)
 
 options_parser = argparse.ArgumentParser(add_help=False)
 options_parser.add_argument("-t", "--tag-name", action="store_true",help="Uses instance tag-name instead of ID")
@@ -56,27 +54,65 @@ parser_start.add_argument('id', nargs='+', type=str,metavar="instance_id", help=
 parser_stop = subparsers.add_parser('stop', help='Stop instances', parents=[options_parser])
 parser_stop.add_argument('id', nargs='+', type=str,metavar="instance_id", help='instance id\'s')
 # list
+#TODO: descobrir como por multplos nomes pros comandos, ex: usar tanto list quanto ls pra listagem
 parser_list = subparsers.add_parser('list', help='List instances')
 # configure
 parser_configure = subparsers.add_parser('configure', help='Set AWS credentials')
 
 args = parser.parse_args()
 
+print(args, "\n")
+
 # emoticon pensativo
 def loading_dots(load_msg, dot_time):
-	for i in range(0,4):
-		print("\033[?25l"+load_msg+"."*i, end="\r")
-		time.sleep(dot_time)
-		print(load_msg+"   ",end="\r")
+    for i in range(0,4):
+        print("\033[?25l"+load_msg+"."*i, end="\r")
+        time.sleep(dot_time)
+        print(load_msg+"   ",end="\r")
 
+def get_instance_ids():
+    reservations = client.describe_instances()['Reservations']
+    instance_list = []
+    for reservation in reservations:
+        instance_list.append(reservation["Instances"][0]["InstanceId"])
+    return instance_list
+
+#encontra id completo a partir da entrada curta do usuario. ex: ex123 -->> i-ex1235464564
+def to_full_id(input_list):
+    ids_list = get_instance_ids()
+    new_list = []
+
+    for input_id in input_list:
+        if input_id.startswith("i-"):
+            input_id = input_id[2:]
+        count = 0
+        for instance_id in ids_list:
+            if count > 1:
+                print(f"Error - More than one id begins with: i-{input_id}")
+                sys.exit(1)
+            if instance_id[2:].startswith(input_id):
+                print(instance_id, 'comeca com', input_id)
+                count += 1
+                new_list.append(instance_id)
+        if count == 0:
+            #raise ValueError("Invalid ID name or prefix", input_id)
+            print("Error - Invalid id/prefix:", input_id)
+            sys.exit(1)
+        
+
+    print(new_list)
+    return new_list
+
+    
 if args.cmd == "start" or args.cmd == "stop":
-	#TODO - resolver essas gambiarra
+    #TODO - resolver essas gambiarra
     aux = ("Starting", "running", f"is {GREEN}") if args.cmd == "start" else ("Stopping", "stopped", f"has {RED}")
+    
     try:
         if args.cmd == "start":
-            client.start_instances(InstanceIds=args.id)
+            client.start_instances(InstanceIds=to_full_id(args.id))
         else:
-            client.stop_instances(InstanceIds=args.id)
+            client.stop_instances(InstanceIds=to_full_id(args.id))
         print(f"{aux[0]} instance(s)")
 
     except ClientError as e:
@@ -89,44 +125,32 @@ if args.cmd == "start" or args.cmd == "stop":
                 loading_dots(f"{aux[0]} {instance_id}", 2)
             print(f"\r{instance_id} {aux[2]}{aux[1]}{ENDC} \033[?25h")
 
-	# if args.addresses:
-	# 	print("ADDRESES OPTION ACTIVAET")
+    # if args.addresses:
+    # 	print("ADDRESES OPTION ACTIVAET")
 
-if args.cmd == "list":
-	# TODO - checar se pode ter varias tags e como fica output com tag nula
-	#	   - sort por estado, de running até terminated
-	#	   - agrupar por zona
+def list_instances_table():
+    reservations = client.describe_instances()['Reservations']
+    instance_list = []  
+    for reservation in reservations:
+        for instance in reservation["Instances"]:
+            instance_id = instance["InstanceId"]
+            instance_tag = instance["Tags"][0]['Value']
+            instance_state = instance['State']['Name']
 
-	reservations = client.describe_instances()['Reservations']
-	instance_list = []
-	for reservation in reservations:
-		for instance in reservation["Instances"]:
-			instance_id = instance["InstanceId"]
-			instance_tag = instance["Tags"][0]['Value']
-			instance_state = instance['State']['Name']
+            if instance_state == 'running':
+                instance_state = "\033[0;32m"+instance_state+"\033[0m"
 
-			if instance_state == 'running':
-				instance_state = "\033[0;32m"+instance_state+"\033[0m"
+            instance_list.append([instance_id, instance_state, instance_tag])
+    print("\n"+tabulate(instance_list, headers=[
+            'Instance Id', 'State', 'Tag'], tablefmt="simple"), "\n", sep="")
 
-			instance_list.append([instance_id, instance_state, instance_tag])
-	print("\n"+tabulate(instance_list, headers=[
-			'Instance Id', 'State', 'Tag'], tablefmt="simple"), "\n", sep="")
 
-	# TABLE_DATA = (
-    # ('Instance Id', 'State', 'Tag'),
-    # ('i-0ccc85407f15e6271', 'stopped', 'ubuntu'),
-    # ('i-09148548f15a84e47', 'stopped', 'foundry-server'),
-	# )
-
-	# title = 'us-east-2'
-	# table_instance = SingleTable(TABLE_DATA, title)
-	# table_instance.outer_border = True
-	# table_instance.inner_column_border = True
-	# table_instance.inner_footing_row_border = False
-	# table_instance.inner_heading_row_border = True
-	# table_instance.inner_row_border = False
-	# # table_instance.justify_columns[0] = 'center'
-	# print(table_instance.table)
+if args.cmd == 'list':
+    # TODO - resolver varias tags e como fica output com tag nula
+    #	   - sort por estado, de running até terminated
+    #	   - agrupar por zona
+    print(get_instance_ids())
+    list_instances_table()	
 
 def mask(key):
     if not key:

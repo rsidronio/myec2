@@ -1,8 +1,7 @@
 [aws]
-aws_access_key_id = 
-aws_secret_access_key = 
-default_region = 
+aws_access_key_id =
+aws_secret_access_key =
+default_region =
 
 [myec2]
 colors = true
-
