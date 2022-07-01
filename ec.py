@@ -59,6 +59,9 @@ parser_list = subparsers.add_parser('list', help='List instances')
 # configure
 parser_configure = subparsers.add_parser('configure', help='Set AWS credentials')
 
+# provisorio pra testar merda
+parser_test = subparsers.add_parser('test', add_help=False)
+
 args = parser.parse_args()
 
 print(args, "\n")
@@ -98,11 +101,18 @@ def to_full_id(input_list):
             #raise ValueError("Invalid ID name or prefix", input_id)
             print("Error - Invalid id/prefix:", input_id)
             sys.exit(1)
-        
-
     print(new_list)
     return new_list
 
+def tag_to_id(tagname):
+    reservations = client.describe_instances()['Reservations']
+    for reservation in reservations:
+        for instance in reservation["Instances"]:
+            instance_id = instance["InstanceId"]
+            instance_tag = instance["Tags"][0]['Value']
+
+if args.cmd == "test":
+    print("OPA")
     
 if args.cmd == "start" or args.cmd == "stop":
     #TODO - resolver essas gambiarra
